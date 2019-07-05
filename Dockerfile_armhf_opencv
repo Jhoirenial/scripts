@@ -1,0 +1,50 @@
+FROM ubuntu:16.04
+
+USER root
+
+RUN dpkg --add-architecture armhf
+
+RUN sed -i -E 's|^deb ([^ ]+) (.*)$|deb [arch=amd64] \1 \2\ndeb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports/ \2|' /etc/apt/sources.list
+
+RUN apt-get update
+
+RUN apt-get install -y git python-pip cmake pkg-config wget
+# crossbuild-essential-armhf
+
+# RUN apt-get install -y --no-install-recommends \
+#         libglib2.0-dev:armhf \
+#         libpython-dev:armhf \
+#         libpython3-dev:armhf \
+#         libgstreamer1.0-dev:armhf \
+#         libgstreamer-plugins-base1.0-dev:armhf \
+#         libgstreamer-plugins-good1.0-dev:armhf \
+#         libgstreamer-plugins-bad1.0-dev:armhf
+
+RUN wget https://releases.linaro.org/components/toolchain/binaries/7.3-2018.05/arm-linux-gnueabihf/gcc-linaro-7.3.1-2018.05-x86_64_arm-linux-gnueabihf.tar.xz
+RUN wget https://releases.linaro.org/components/toolchain/binaries/7.3-2018.05/arm-linux-gnueabihf/gcc-linaro-7.3.1-2018.05-x86_64_arm-linux-gnueabihf.tar.xz.asc
+RUN tar xf gcc-linaro-7.3.1-2018.05-x86_64_arm-linux-gnueabihf.tar.xz
+# ADD /home/michael/Downloads/gcc-linaro-7.3.1-2018.05-x86_64_arm-linux-gnueabihf.tar.xz /
+
+ENV PATH=/gcc-linaro-7.3.1-2018.05-x86_64_arm-linux-gnueabihf/bin:$PATH
+RUN env
+RUN arm-linux-gnueabihf-gcc --version
+
+# getting OpenCV sources
+RUN git clone https://github.com/opencv/opencv.git -b 4.0.1
+RUN git clone https://github.com/opencv/opencv_contrib.git -b 4.0.1
+
+RUN mkdir opencv/build_arm-linux-gnueabihf && cd opencv/build_arm-linux-gnueabihf && \
+    export PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig && \
+    cmake -DCMAKE_BUILD_TYPE=Release \
+          -DOPENCV_CONFIG_INSTALL_PATH="cmake" \
+          -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
+          -DCMAKE_TOOLCHAIN_FILE="../opencv/platforms/linux/arm-gnueabi.toolchain.cmake" \
+          -DWITH_IPP=OFF \
+          -DBUILD_TESTS=OFF \
+          -DBUILD_EXAMPLES=ON \
+          -DINSTALL_C_EXAMPLES=ON \
+          -DBUILD_PERF_TESTS=OFF \
+          -DOPENCV_ENABLE_PKG_CONFIG=ON \
+          -DENABLE_NEON=ON \
+          -DCPU_BASELINE="NEON" .. && \
+    make -j4 && make install
